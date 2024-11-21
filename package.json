@@ -1,7 +1,8 @@
 {
-  "name": "notification-server",
+  "name": "kitabya-backend",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "Backend server for Kitabya - A book marketplace application",
+  "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
@@ -9,11 +10,16 @@
     "test": "jest"
   },
   "dependencies": {
+    "cloudinary": "^1.37.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "firebase-admin": "^11.11.0",
     "joi": "^17.13.3",
+    "mongoose": "^6.0.0",
+    "multer": "^1.4.5-lts.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "winston": "^3.17.0"
   },
   "devDependencies": {

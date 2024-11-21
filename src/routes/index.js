@@ -11,6 +11,7 @@ router.use(logger.httpRequest);
 router.get('/health', (req, res) => {
     res.status(200).json({
         status: 'ok',
+        service: 'Kitabya Backend',
         timestamp: new Date().toISOString(),
         uptime: process.uptime()
     });
