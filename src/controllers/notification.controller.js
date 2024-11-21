@@ -27,6 +27,33 @@ class NotificationController {
             next(error);
         }
     }
+
+    static async broadcastToAll(req, res, next) {
+        try {
+            const { title, body, data } = req.body;
+            logger.info('Received broadcast request', { title });
+
+            if (!title || !body) {
+                logger.warn('Missing required fields');
+                return res.status(400).json({
+                    error: 'Validation Error',
+                    message: 'Title and body are required'
+                });
+            }
+
+            const response = await NotificationService.broadcastToAll(title, body, data);
+            logger.info('Successfully sent broadcast', { messageId: response });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Broadcast sent successfully',
+                messageId: response
+            });
+        } catch (error) {
+            logger.error('Error in broadcast controller:', error);
+            next(error);
+        }
+    }
 }
 
 module.exports = NotificationController;

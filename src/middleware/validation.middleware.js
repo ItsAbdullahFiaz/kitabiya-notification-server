@@ -49,6 +49,25 @@ const validationMiddleware = {
             });
         }
         next();
+    },
+    validateBroadcast: (req, res, next) => {
+        const schema = Joi.object({
+            title: Joi.string().required(),
+            body: Joi.string().required(),
+            data: Joi.object().pattern(
+                Joi.string(),
+                Joi.alternatives().try(Joi.string(), Joi.number(), Joi.boolean())
+            ).optional()
+        });
+
+        const { error } = schema.validate(req.body);
+        if (error) {
+            return res.status(400).json({
+                error: 'Validation failed',
+                details: error.details.map(x => x.message)
+            });
+        }
+        next();
     }
 };
 
