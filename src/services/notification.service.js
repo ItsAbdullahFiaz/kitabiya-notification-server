@@ -32,36 +32,28 @@ class NotificationService {
 
     static async broadcastToAll(title, body, data) {
         try {
-            logger.info('Attempting to send broadcast notification', { title, body });
-
-            // Check if Firebase is initialized
-            if (!admin.apps.length) {
-                throw new Error('Firebase Admin not initialized');
+            if (!title || !body) {
+                throw new Error('Title and body are required for broadcast');
             }
 
             const message = {
-                topic: 'all',
                 notification: {
                     title,
                     body
                 },
-                data: {
-                    ...Object.fromEntries(
-                        Object.entries(data || {}).map(([key, value]) => [key, String(value)])
-                    ),
-                    timestamp: String(Date.now())  // Add timestamp for tracking
-                },
+                topic: 'all-users',
+                data: data ? Object.fromEntries(
+                    Object.entries(data).map(([key, value]) => [key, String(value)])
+                ) : undefined,
                 android: {
                     priority: 'high',
                     notification: {
-                        clickAction: 'android.intent.action.MAIN',
                         channelId: 'default'
                     }
                 },
                 apns: {
                     payload: {
                         aps: {
-                            contentAvailable: true,
                             badge: 1,
                             sound: 'default'
                         }
@@ -69,29 +61,13 @@ class NotificationService {
                 }
             };
 
-            // Log the complete message for debugging
-            logger.info('Sending FCM message:', { message });
-
+            logger.info('Sending broadcast notification:', { title, body });
             const response = await admin.messaging().send(message);
-            logger.info('Broadcast sent successfully', {
-                messageId: response,
-                topic: 'all',
-                title,
-                timestamp: new Date().toISOString()
-            });
+            logger.info('Broadcast sent successfully:', response);
 
-            return {
-                success: true,
-                messageId: response,
-                topic: 'all',
-                timestamp: new Date().toISOString()
-            };
+            return response;
         } catch (error) {
-            logger.error('Error in broadcastToAll:', {
-                error: error.message,
-                code: error.code,
-                stack: error.stack
-            });
+            logger.error('Error sending broadcast:', error);
             throw error;
         }
     }
