@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 require('dotenv').config();
+const multer = require('multer');
 
 const { initializeFirebase } = require('./config/firebase.config');
 const connectDB = require('./config/db.config');
@@ -10,34 +11,54 @@ const swaggerSpec = require('./docs/swagger');
 const routes = require('./routes');
 const errorHandler = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
-const productRoutes = require('./routes/product.routes');
+const { initializeCloudinary } = require('./config/cloudinary.config');
 
 const app = express();
 
 // Initialize Firebase
 initializeFirebase();
 
-// Add Swagger documentation route
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Initialize Cloudinary
+initializeCloudinary();
 
 // Middleware
 app.use(cors(config.cors));
 app.use(express.json());
 
-// Routes
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'ok',
-        message: 'Kitabya Backend is running',
-        timestamp: new Date().toISOString()
-    });
-});
+// Add Swagger documentation route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Mount all routes under /api
 app.use('/api', routes);
-app.use('/api/v1/products', productRoutes);
 
 // Error handling
 app.use(errorHandler);
+
+// Error handling for file uploads
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({
+                error: 'File too large',
+                message: 'File size cannot exceed 5MB'
+            });
+        }
+        return res.status(400).json({
+            error: 'File upload error',
+            message: err.message
+        });
+    }
+    next(err);
+});
+
+// Debug middleware (temporary)
+app.use((req, res, next) => {
+    console.log('Request URL:', req.url);
+    console.log('Registered Routes:', app._router.stack
+        .filter(r => r.route)
+        .map(r => `${Object.keys(r.route.methods)} ${r.route.path}`));
+    next();
+});
 
 const startServer = async () => {
     try {

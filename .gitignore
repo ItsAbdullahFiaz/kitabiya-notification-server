@@ -45,3 +45,7 @@ pids
 # Windows
 Thumbs.db
 ehthumbs.db
+
+# .gitignore
+uploads/*
+!uploads/.gitkeep

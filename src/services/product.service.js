@@ -1,29 +1,118 @@
 const Product = require('../models/product.model');
+const User = require('../models/user.model');
 const cloudinary = require('cloudinary').v2;
+const logger = require('../utils/logger');
+const mongoose = require('mongoose');
 
 class ProductService {
     static async createProduct(userId, productData, images) {
-        const imageUrls = await Promise.all(
-            images.map(image =>
+        try {
+            // Check if user exists
+            const user = await User.findById(userId);
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Upload images to Cloudinary
+            const uploadPromises = images.map(image =>
                 cloudinary.uploader.upload(image.path, {
                     folder: 'products'
                 })
-            )
-        );
+            );
 
-        const product = new Product({
-            ...productData,
-            userId,
-            images: imageUrls.map(img => img.secure_url)
-        });
+            const uploadedImages = await Promise.all(uploadPromises);
+            const imageUrls = uploadedImages.map(result => result.secure_url);
 
-        return await product.save();
+            // Create product with flat structure
+            const product = await Product.create({
+                userId,
+                title: productData.title,
+                price: productData.price,
+                categoryId: productData.categoryId,
+                categorySubId: productData.categorySubId,
+                condition: productData.condition,
+                type: productData.type,
+                language: productData.language,
+                description: productData.description,
+                locationLatitude: productData.locationLatitude,
+                locationLongitude: productData.locationLongitude,
+                locationAddress: productData.locationAddress,
+                images: imageUrls
+            });
+
+            return {
+                ...product.toObject(),
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                }
+            };
+        } catch (error) {
+            logger.error('Error in ProductService.createProduct:', error);
+            throw error;
+        }
     }
 
-    static async getAllProducts(query = {}) {
-        return await Product.find(query)
-            .sort({ createdAt: -1 })
-            .lean();
+    static async getAllProducts({ page = 1, limit = 10, sort = '-createdAt' }) {
+        try {
+            const skip = (page - 1) * limit;
+
+            // Get products
+            const products = await Product.find()
+                .sort(sort)
+                .skip(skip)
+                .limit(limit)
+                .lean();
+
+            // Get total count
+            const total = await Product.countDocuments();
+
+            // Get valid user IDs (ensure they are valid ObjectIds)
+            const userIds = products
+                .map(p => p.userId)
+                .filter(id => mongoose.Types.ObjectId.isValid(id));
+
+            // Fetch users only if we have valid IDs
+            let userMap = {};
+            if (userIds.length > 0) {
+                const users = await User.find({
+                    _id: { $in: userIds }
+                }).lean();
+
+                userMap = users.reduce((acc, user) => {
+                    acc[user._id.toString()] = {
+                        id: user._id,
+                        name: user.name,
+                        email: user.email
+                    };
+                    return acc;
+                }, {});
+            }
+
+            // Format products
+            const formattedProducts = products.map(product => {
+                const userId = product.userId ? product.userId.toString() : null;
+                return {
+                    ...product,
+                    user: userId && userMap[userId] ? userMap[userId] : null,
+                    userId: undefined
+                };
+            });
+
+            return {
+                products: formattedProducts,
+                total,
+                page: Number(page),
+                pages: Math.ceil(total / limit)
+            };
+        } catch (error) {
+            logger.error('Error in ProductService.getAllProducts:', {
+                error: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
     }
 
     static async getUserProducts(userId) {
@@ -32,11 +121,38 @@ class ProductService {
             .lean();
     }
 
-    static async getProductById(productId, userId) {
-        return await Product.findOne({
-            _id: productId,
-            userId
-        }).lean();
+    static async getProductById(id) {
+        try {
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                throw new Error('Invalid product ID');
+            }
+
+            const product = await Product.findById(id).lean();
+            if (!product) {
+                return null;
+            }
+
+            let user = null;
+            if (product.userId && mongoose.Types.ObjectId.isValid(product.userId)) {
+                user = await User.findById(product.userId).lean();
+            }
+
+            return {
+                ...product,
+                user: user ? {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                } : null,
+                userId: undefined
+            };
+        } catch (error) {
+            logger.error('Error in ProductService.getProductById:', {
+                error: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
     }
 
     static async deleteProduct(productId, userId) {
@@ -44,6 +160,110 @@ class ProductService {
             _id: productId,
             userId
         });
+    }
+
+    static async getProductsByUser({ userId, page = 1, limit = 10, sort = '-createdAt' }) {
+        try {
+            const skip = (page - 1) * limit;
+
+            const [products, total] = await Promise.all([
+                Product.find({ userId })
+                    .sort(sort)
+                    .skip(skip)
+                    .limit(limit)
+                    .lean(),
+                Product.countDocuments({ userId })
+            ]);
+
+            const user = await User.findById(userId).lean();
+            const userData = user ? {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            } : null;
+
+            const formattedProducts = products.map(product => ({
+                ...product,
+                user: userData,
+                userId: undefined
+            }));
+
+            return {
+                products: formattedProducts,
+                total,
+                page: Number(page),
+                pages: Math.ceil(total / limit)
+            };
+        } catch (error) {
+            logger.error('Error in getProductsByUser:', error);
+            throw error;
+        }
+    }
+
+    static async updateProduct(id, updateData, newImages = []) {
+        try {
+            const product = await Product.findById(id);
+            if (!product) return null;
+
+            // Upload new images if provided
+            let imageUrls = [...product.images];
+            if (newImages.length > 0) {
+                const uploadPromises = newImages.map(image =>
+                    cloudinary.uploader.upload(image.path, {
+                        folder: 'products'
+                    })
+                );
+                const uploadedImages = await Promise.all(uploadPromises);
+                const newImageUrls = uploadedImages.map(result => result.secure_url);
+                imageUrls = [...imageUrls, ...newImageUrls];
+            }
+
+            // Update product
+            const updatedProduct = await Product.findByIdAndUpdate(
+                id,
+                {
+                    ...updateData,
+                    images: imageUrls
+                },
+                { new: true }
+            ).lean();
+
+            // Get user data
+            const user = await User.findById(updatedProduct.userId).lean();
+
+            return {
+                ...updatedProduct,
+                user: user ? {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                } : null,
+                userId: undefined
+            };
+        } catch (error) {
+            logger.error('Error in updateProduct:', error);
+            throw error;
+        }
+    }
+
+    static async deleteProduct(id) {
+        try {
+            const product = await Product.findByIdAndDelete(id);
+            if (!product) return null;
+
+            // Delete images from Cloudinary
+            const deletePromises = product.images.map(imageUrl => {
+                const publicId = imageUrl.split('/').pop().split('.')[0];
+                return cloudinary.uploader.destroy(`products/${publicId}`);
+            });
+
+            await Promise.all(deletePromises);
+
+            return true;
+        } catch (error) {
+            logger.error('Error in deleteProduct:', error);
+            throw error;
+        }
     }
 }
 

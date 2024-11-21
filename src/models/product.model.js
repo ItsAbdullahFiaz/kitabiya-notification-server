@@ -6,23 +6,56 @@ const productSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    images: [String],
-    category: {
-        id: { type: String, required: true },
-        subCategoryId: { type: String, required: true }
+    title: {
+        type: String,
+        required: true
     },
-    condition: { type: String, required: true },
-    type: { type: String, required: true },
-    language: { type: String, required: true },
-    title: { type: String, required: true },
-    description: { type: String, required: true },
-    location: {
-        latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true },
-        address: { type: String, required: true }
+    price: {
+        type: Number,
+        required: true
     },
-    price: { type: Number, required: true },
-    createdAt: { type: Date, default: Date.now }
+    categoryId: {
+        type: String,
+        required: true
+    },
+    categorySubId: {
+        type: String,
+        required: true
+    },
+    condition: {
+        type: String,
+        required: true
+    },
+    type: {
+        type: String,
+        required: true
+    },
+    language: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
+        required: true
+    },
+    locationLatitude: {
+        type: Number,
+        required: true
+    },
+    locationLongitude: {
+        type: Number,
+        required: true
+    },
+    locationAddress: {
+        type: String,
+        required: true
+    },
+    images: [{
+        type: String,
+        required: true
+    }]
+}, {
+    timestamps: true
 });
 
 module.exports = mongoose.model('Product', productSchema);

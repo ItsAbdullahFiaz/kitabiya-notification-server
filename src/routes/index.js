@@ -1,5 +1,7 @@
 const express = require('express');
+const productRoutes = require('./product.routes');
 const notificationRoutes = require('./notification.routes');
+const userRoutes = require('./user.routes');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -17,8 +19,10 @@ router.get('/health', (req, res) => {
     });
 });
 
-// API version prefix
+// Mount routes
+router.use('/v1/products', productRoutes);
 router.use('/v1/notifications', notificationRoutes);
+router.use('/v1/users', userRoutes);
 
 // 404 handler for undefined routes
 router.use('*', (req, res) => {
@@ -29,3 +33,4 @@ router.use('*', (req, res) => {
 });
 
 module.exports = router;
+
