@@ -264,6 +264,67 @@ class ProductController {
             next(error);
         }
     }
+
+    static async searchProducts(req, res, next) {
+        try {
+            const {
+                query = '',
+                type,
+                condition,
+                language,
+                categoryId,
+                categorySubId,
+                minPrice,
+                maxPrice,
+                sortBy = 'createdAt',
+                sortOrder = 'desc',
+                page = 1,
+                limit = 10
+            } = req.query;
+
+            console.log('Search criteria:', req.query); // Debug log
+
+            const searchCriteria = {
+                query,
+                filters: {
+                    type,
+                    condition,
+                    language,
+                    categoryId,
+                    categorySubId,
+                    price: {
+                        min: minPrice ? Number(minPrice) : undefined,
+                        max: maxPrice ? Number(maxPrice) : undefined
+                    }
+                },
+                sort: {
+                    field: sortBy,
+                    order: sortOrder
+                },
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit)
+                }
+            };
+
+            const result = await ProductService.searchProducts(searchCriteria);
+
+            res.status(200).json({
+                success: true,
+                message: 'Search results retrieved successfully',
+                data: result.products,
+                pagination: {
+                    total: result.total,
+                    page: result.page,
+                    pages: result.pages,
+                    limit: result.limit
+                }
+            });
+        } catch (error) {
+            console.error('Search error:', error); // Debug log
+            next(error);
+        }
+    }
 }
 
 module.exports = ProductController;

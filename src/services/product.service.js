@@ -265,6 +265,104 @@ class ProductService {
             throw error;
         }
     }
+
+    static async searchProducts(criteria) {
+        try {
+            const { query, filters, sort, pagination } = criteria;
+
+            // Build search query
+            const searchQuery = {};
+
+            // Text search
+            if (query && query.trim() !== '') {
+                searchQuery.$or = [
+                    { title: { $regex: query, $options: 'i' } },
+                    { description: { $regex: query, $options: 'i' } }
+                ];
+            }
+
+            // Apply filters
+            if (filters.type) {
+                searchQuery.type = filters.type;
+            }
+            if (filters.condition) {
+                searchQuery.condition = filters.condition;
+            }
+            if (filters.language) {
+                searchQuery.language = filters.language;
+            }
+            if (filters.categoryId) {
+                searchQuery.categoryId = filters.categoryId;
+            }
+            if (filters.categorySubId) {
+                searchQuery.categorySubId = filters.categorySubId;
+            }
+
+            // Price range
+            if (filters.price.min !== undefined || filters.price.max !== undefined) {
+                searchQuery.price = {};
+                if (filters.price.min !== undefined) {
+                    searchQuery.price.$gte = filters.price.min;
+                }
+                if (filters.price.max !== undefined) {
+                    searchQuery.price.$lte = filters.price.max;
+                }
+            }
+
+            console.log('MongoDB Query:', searchQuery); // Debug log
+
+            // Build sort object
+            const sortObject = {
+                [sort.field]: sort.order === 'asc' ? 1 : -1
+            };
+
+            // Execute search query with pagination
+            const [products, total] = await Promise.all([
+                Product.find(searchQuery)
+                    .sort(sortObject)
+                    .skip((pagination.page - 1) * pagination.limit)
+                    .limit(pagination.limit)
+                    .lean(),
+                Product.countDocuments(searchQuery)
+            ]);
+
+            console.log('Found products:', products.length); // Debug log
+
+            // Get user data
+            const userIds = [...new Set(products.map(p => p.userId))];
+            const users = await User.find({
+                _id: { $in: userIds }
+            }).lean();
+
+            const userMap = users.reduce((acc, user) => {
+                acc[user._id.toString()] = {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                };
+                return acc;
+            }, {});
+
+            // Format products
+            const formattedProducts = products.map(product => ({
+                ...product,
+                user: userMap[product.userId.toString()] || null,
+                userId: undefined
+            }));
+
+            return {
+                products: formattedProducts,
+                total,
+                page: pagination.page,
+                pages: Math.ceil(total / pagination.limit),
+                limit: pagination.limit
+            };
+        } catch (error) {
+            console.error('Search service error:', error); // Debug log
+            throw error;
+        }
+    }
 }
 
 module.exports = ProductService;
+
