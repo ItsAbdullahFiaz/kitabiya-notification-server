@@ -3,6 +3,7 @@ const User = require('../models/user.model');
 const cloudinary = require('cloudinary').v2;
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
+const RecentSearch = require('../models/recentSearch.model');
 
 class ProductService {
     static async createProduct(userId, productData, images) {
@@ -359,6 +360,46 @@ class ProductService {
             };
         } catch (error) {
             console.error('Search service error:', error); // Debug log
+            throw error;
+        }
+    }
+
+    static async getRecentSearches(userId) {
+        try {
+            const searches = await RecentSearch.find({ userId })
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .populate('productId', 'title images price');
+
+            return searches;
+        } catch (error) {
+            logger.error('Error in getRecentSearches:', error);
+            throw error;
+        }
+    }
+
+    static async addToRecentSearches(userId, productId) {
+        try {
+            // Remove if already exists to avoid duplicates
+            await RecentSearch.findOneAndDelete({ userId, productId });
+
+            // Add new entry
+            await RecentSearch.create({
+                userId,
+                productId,
+                createdAt: new Date()
+            });
+        } catch (error) {
+            logger.error('Error in addToRecentSearches:', error);
+            throw error;
+        }
+    }
+
+    static async clearRecentSearches(userId) {
+        try {
+            await RecentSearch.deleteMany({ userId });
+        } catch (error) {
+            logger.error('Error in clearRecentSearches:', error);
             throw error;
         }
     }

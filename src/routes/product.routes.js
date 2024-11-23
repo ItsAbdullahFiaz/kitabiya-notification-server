@@ -260,4 +260,91 @@ router.delete('/:id', ProductController.deleteProduct);
  */
 router.get('/:id', ProductController.getProductById);
 
+/**
+ * @swagger
+ * /api/v1/products/recent-searches:
+ *   get:
+ *     summary: Get user's recent product searches
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to get recent searches for
+ *     responses:
+ *       200:
+ *         description: Recent searches retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       productId:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       timestamp:
+ *                         type: string
+ *       400:
+ *         description: Invalid user ID
+ *       500:
+ *         description: Server error
+ * 
+ *   post:
+ *     summary: Add a product to recent searches
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - productId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               productId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Product added to recent searches
+ *       400:
+ *         description: Invalid input
+ *       500:
+ *         description: Server error
+ * 
+ *   delete:
+ *     summary: Clear recent searches for a user
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to clear recent searches for
+ *     responses:
+ *       200:
+ *         description: Recent searches cleared successfully
+ *       400:
+ *         description: Invalid user ID
+ *       500:
+ *         description: Server error
+ */
+router.get('/recent-searches', ProductController.getRecentSearches);
+router.post('/recent-searches', ProductController.addToRecentSearches);
+router.delete('/recent-searches', ProductController.clearRecentSearches);
+
 module.exports = router;

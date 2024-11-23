@@ -325,6 +325,81 @@ class ProductController {
             next(error);
         }
     }
+
+    static async getRecentSearches(req, res) {
+        try {
+            const { userId } = req.query;
+
+            if (!userId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'User ID is required'
+                });
+            }
+
+            const recentSearches = await ProductService.getRecentSearches(userId);
+            return res.status(200).json({
+                success: true,
+                data: recentSearches
+            });
+        } catch (error) {
+            logger.error('Error getting recent searches:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to get recent searches'
+            });
+        }
+    }
+
+    static async addToRecentSearches(req, res) {
+        try {
+            const { userId, productId } = req.body;
+
+            if (!userId || !productId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'User ID and Product ID are required'
+                });
+            }
+
+            await ProductService.addToRecentSearches(userId, productId);
+            return res.status(200).json({
+                success: true,
+                message: 'Added to recent searches'
+            });
+        } catch (error) {
+            logger.error('Error adding to recent searches:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to add to recent searches'
+            });
+        }
+    }
+
+    static async clearRecentSearches(req, res) {
+        try {
+            const { userId } = req.query;
+
+            if (!userId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'User ID is required'
+                });
+            }
+
+            await ProductService.clearRecentSearches(userId);
+            return res.status(200).json({
+                success: true,
+                message: 'Recent searches cleared'
+            });
+        } catch (error) {
+            logger.error('Error clearing recent searches:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to clear recent searches'
+            });
+        }
+    }
 }
 
 module.exports = ProductController;
