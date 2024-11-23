@@ -355,6 +355,7 @@ class ProductController {
         try {
             const { userId, productId } = req.body;
 
+            // Validate inputs
             if (!userId || !productId) {
                 return res.status(400).json({
                     success: false,
@@ -362,7 +363,9 @@ class ProductController {
                 });
             }
 
+            // Add to recent searches
             await ProductService.addToRecentSearches(userId, productId);
+
             return res.status(200).json({
                 success: true,
                 message: 'Added to recent searches'

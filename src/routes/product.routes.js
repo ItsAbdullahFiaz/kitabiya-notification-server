@@ -315,13 +315,15 @@ router.get('/:id', ProductController.getProductById);
  *             properties:
  *               userId:
  *                 type: string
+ *                 description: ID of the user
  *               productId:
  *                 type: string
+ *                 description: ID of the product being viewed
  *     responses:
  *       200:
- *         description: Product added to recent searches
+ *         description: Successfully added to recent searches
  *       400:
- *         description: Invalid input
+ *         description: Missing required fields
  *       500:
  *         description: Server error
  * 

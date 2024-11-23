@@ -380,15 +380,34 @@ class ProductService {
 
     static async addToRecentSearches(userId, productId) {
         try {
-            // Remove if already exists to avoid duplicates
-            await RecentSearch.findOneAndDelete({ userId, productId });
+            // First, check if this product is already in recent searches
+            await RecentSearch.findOneAndDelete({
+                userId,
+                productId
+            });
 
-            // Add new entry
-            await RecentSearch.create({
+            // Create new recent search entry
+            const recentSearch = await RecentSearch.create({
                 userId,
                 productId,
                 createdAt: new Date()
             });
+
+            // Keep only last 10 searches
+            const count = await RecentSearch.countDocuments({ userId });
+            if (count > 10) {
+                // Delete oldest entries beyond 10
+                await RecentSearch.find({ userId })
+                    .sort({ createdAt: 1 })
+                    .limit(count - 10)
+                    .then(oldest => {
+                        return RecentSearch.deleteMany({
+                            _id: { $in: oldest.map(doc => doc._id) }
+                        });
+                    });
+            }
+
+            return recentSearch;
         } catch (error) {
             logger.error('Error in addToRecentSearches:', error);
             throw error;
