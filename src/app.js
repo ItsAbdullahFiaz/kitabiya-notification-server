@@ -14,6 +14,7 @@ const routes = require('./routes');
 const errorHandler = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
 const { initializeCloudinary } = require('./config/cloudinary.config');
+const productRoutes = require('./routes/product.routes');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/', limiter);
 
 // Mount all routes under /api
 app.use('/api', routes);
+app.use('/api/v1/products', productRoutes);
 
 // Error handling
 app.use(errorHandler);

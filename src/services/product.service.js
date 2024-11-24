@@ -366,12 +366,37 @@ class ProductService {
 
     static async getRecentSearches(userId) {
         try {
+            logger.info('Getting recent searches for user:', userId);
+
             const searches = await RecentSearch.find({ userId })
                 .sort({ createdAt: -1 })
                 .limit(10)
-                .populate('productId', 'title images price');
+                .populate({
+                    path: 'productId',
+                    select: 'title images price',
+                    model: 'Product'
+                })
+                .lean();
 
-            return searches;
+            // Filter out any searches where product might have been deleted
+            const validSearches = searches.filter(search => search.productId);
+
+            logger.info(`Found ${validSearches.length} valid searches`);
+
+            // Format the response
+            const formattedSearches = validSearches.map(search => ({
+                _id: search._id,
+                userId: search.userId,
+                product: {
+                    _id: search.productId._id,
+                    title: search.productId.title,
+                    images: search.productId.images,
+                    price: search.productId.price
+                },
+                createdAt: search.createdAt
+            }));
+
+            return formattedSearches;
         } catch (error) {
             logger.error('Error in getRecentSearches:', error);
             throw error;
@@ -380,33 +405,36 @@ class ProductService {
 
     static async addToRecentSearches(userId, productId) {
         try {
-            // First, check if this product is already in recent searches
-            await RecentSearch.findOneAndDelete({
+            logger.info('Adding to recent searches:', { userId, productId });
+
+            // Verify product exists
+            const product = await Product.findById(productId);
+            if (!product) {
+                throw new Error('Product not found');
+            }
+
+            // Check if this combination already exists
+            const existingSearch = await RecentSearch.findOne({
                 userId,
-                productId
+                productId: new mongoose.Types.ObjectId(productId)
             });
 
-            // Create new recent search entry
+            if (existingSearch) {
+                // Update timestamp of existing search
+                existingSearch.createdAt = new Date();
+                await existingSearch.save();
+                logger.info('Updated existing search timestamp');
+                return existingSearch;
+            }
+
+            // Create new entry if it doesn't exist
             const recentSearch = await RecentSearch.create({
                 userId,
-                productId,
+                productId: new mongoose.Types.ObjectId(productId),
                 createdAt: new Date()
             });
 
-            // Keep only last 10 searches
-            const count = await RecentSearch.countDocuments({ userId });
-            if (count > 10) {
-                // Delete oldest entries beyond 10
-                await RecentSearch.find({ userId })
-                    .sort({ createdAt: 1 })
-                    .limit(count - 10)
-                    .then(oldest => {
-                        return RecentSearch.deleteMany({
-                            _id: { $in: oldest.map(doc => doc._id) }
-                        });
-                    });
-            }
-
+            logger.info('Created new recent search entry');
             return recentSearch;
         } catch (error) {
             logger.error('Error in addToRecentSearches:', error);
@@ -416,7 +444,16 @@ class ProductService {
 
     static async clearRecentSearches(userId) {
         try {
-            await RecentSearch.deleteMany({ userId });
+            logger.info('Clearing recent searches for user:', userId);
+
+            const result = await RecentSearch.deleteMany({
+                userId: userId.toString()
+            });
+
+            logger.info(`Cleared ${result.deletedCount} recent searches for user ${userId}`);
+            return {
+                deletedCount: result.deletedCount
+            };
         } catch (error) {
             logger.error('Error in clearRecentSearches:', error);
             throw error;

@@ -333,20 +333,24 @@ class ProductController {
             if (!userId) {
                 return res.status(400).json({
                     success: false,
-                    error: 'User ID is required'
+                    error: 'Validation Error',
+                    message: 'User ID is required'
                 });
             }
 
             const recentSearches = await ProductService.getRecentSearches(userId);
+
             return res.status(200).json({
                 success: true,
-                data: recentSearches
+                data: recentSearches,
+                message: 'Recent searches retrieved successfully'
             });
         } catch (error) {
             logger.error('Error getting recent searches:', error);
             return res.status(500).json({
                 success: false,
-                error: 'Failed to get recent searches'
+                error: 'Server Error',
+                message: error.message || 'Error retrieving recent searches'
             });
         }
     }
@@ -355,17 +359,15 @@ class ProductController {
         try {
             const { userId, productId } = req.body;
 
-            // Validate inputs
             if (!userId || !productId) {
                 return res.status(400).json({
                     success: false,
-                    error: 'User ID and Product ID are required'
+                    error: 'Validation Error',
+                    message: 'User ID and Product ID are required'
                 });
             }
 
-            // Add to recent searches
             await ProductService.addToRecentSearches(userId, productId);
-
             return res.status(200).json({
                 success: true,
                 message: 'Added to recent searches'
@@ -374,7 +376,8 @@ class ProductController {
             logger.error('Error adding to recent searches:', error);
             return res.status(500).json({
                 success: false,
-                error: 'Failed to add to recent searches'
+                error: 'Server Error',
+                message: error.message
             });
         }
     }
@@ -382,24 +385,36 @@ class ProductController {
     static async clearRecentSearches(req, res) {
         try {
             const { userId } = req.query;
+            logger.info('Attempting to clear recent searches for user:', userId);
 
             if (!userId) {
                 return res.status(400).json({
                     success: false,
-                    error: 'User ID is required'
+                    error: 'Validation Error',
+                    message: 'User ID is required'
                 });
             }
 
-            await ProductService.clearRecentSearches(userId);
+            const result = await ProductService.clearRecentSearches(userId);
+
             return res.status(200).json({
                 success: true,
-                message: 'Recent searches cleared'
+                message: 'Recent searches cleared successfully',
+                count: result.deletedCount
             });
         } catch (error) {
             logger.error('Error clearing recent searches:', error);
+            if (error.name === 'CastError') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: 'Invalid user ID format'
+                });
+            }
             return res.status(500).json({
                 success: false,
-                error: 'Failed to clear recent searches'
+                error: 'Server Error',
+                message: error.message || 'Error clearing recent searches'
             });
         }
     }
