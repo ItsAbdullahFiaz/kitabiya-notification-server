@@ -138,4 +138,79 @@ router.post('/send', validateNotification, NotificationController.sendNotificati
  */
 router.post('/broadcast', validateBroadcast, NotificationController.broadcastToAll);
 
+/**
+ * @swagger
+ * /api/v1/notifications/broadcasts:
+ *   get:
+ *     summary: Get broadcast notification history
+ *     tags: [Notifications]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: Broadcast history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     broadcasts:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           body:
+ *                             type: string
+ *                           data:
+ *                             type: object
+ *                           sentBy:
+ *                             type: string
+ *                           messageId:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                             enum: [sent, failed]
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         current:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         pages:
+ *                           type: integer
+ *       500:
+ *         description: Server error
+ */
+router.get('/broadcasts', NotificationController.getBroadcastHistory);
+
 module.exports = router;
