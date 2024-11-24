@@ -148,43 +148,25 @@ class ProductService {
 
     static async getProductById(productId) {
         try {
-            logger.info('Getting product by ID:', productId);
-
-            // This single operation does two things:
-            // 1. Finds the product
-            // 2. Increments the views counter
-            const product = await Product.findOneAndUpdate(
-                { _id: productId },        // Find product by ID
-                { $inc: { views: 1 } },    // Increment views by 1
-                {
-                    new: true,             // Return updated document
-                    populate: {            // Include user details
-                        path: 'userId',
-                        select: 'name email'
-                    }
-                }
-            );
+            // Increment views
+            const product = await Product.findByIdAndUpdate(
+                productId,
+                { $inc: { views: 1 } },
+                { new: true }
+            ).populate('userId', 'name email');
 
             if (!product) {
-                throw new Error('Product not found');
+                return null;
             }
 
-            // Format response
-            const formattedProduct = {
-                _id: product._id,
-                title: product.title,
-                price: product.price,
-                views: product.views,      // Include view count in response
+            return {
+                ...product.toObject(),
                 user: {
                     id: product.userId._id,
                     name: product.userId.name,
                     email: product.userId.email
-                },
-                // ... other fields ...
+                }
             };
-
-            logger.info(`Product ${productId} viewed. Total views: ${product.views}`);
-            return formattedProduct;
         } catch (error) {
             logger.error('Error in getProductById:', error);
             throw error;

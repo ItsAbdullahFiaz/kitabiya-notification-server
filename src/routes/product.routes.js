@@ -30,6 +30,12 @@ router.delete('/recent-searches/:searchId',
     ProductController.deleteRecentSearch
 );
 
+// Add this route with the other recent search routes
+router.post('/recent-searches',
+    auth,
+    ProductController.addToRecentSearches
+);
+
 // Static routes first (before parameterized routes)
 router.get('/my-products',
     auth,

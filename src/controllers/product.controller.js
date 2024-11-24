@@ -351,6 +351,7 @@ class ProductController {
     static async addToRecentSearches(req, res) {
         try {
             const { productId } = req.body;
+            const userId = req.mongoUser._id;
 
             if (!productId) {
                 return res.status(400).json({
@@ -360,7 +361,7 @@ class ProductController {
                 });
             }
 
-            await ProductService.addToRecentSearches(req.user.uid, productId);
+            await ProductService.addToRecentSearches(userId, productId);
             return res.status(200).json({
                 success: true,
                 message: 'Added to recent searches'
