@@ -370,4 +370,114 @@ router.delete('/:id', ProductController.deleteProduct);
  */
 router.get('/:id', ProductController.getProductById);
 
+/**
+ * @swagger
+ * /api/v1/products/{productId}/report:
+ *   post:
+ *     summary: Report a product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product ID to report
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - reason
+ *               - description
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 example: "67417edd62c15e0bd0e5b9ac"
+ *               reason:
+ *                 type: string
+ *                 enum: [inappropriate, spam, fake, offensive, other]
+ *               description:
+ *                 type: string
+ *                 example: "This product contains inappropriate content"
+ *     responses:
+ *       201:
+ *         description: Product reported successfully
+ *       400:
+ *         description: Invalid input or duplicate report
+ *       404:
+ *         description: Product not found
+ */
+
+/**
+ * @swagger
+ * /api/v1/products/{productId}/reports:
+ *   get:
+ *     summary: Get all reports for a product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: List of reports retrieved successfully
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/v1/products/reports/{reportId}/status:
+ *   patch:
+ *     summary: Update report status
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: reportId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Report ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *               - adminId
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, reviewed, resolved]
+ *               adminComment:
+ *                 type: string
+ *                 example: "Content reviewed and found inappropriate"
+ *               adminId:
+ *                 type: string
+ *                 example: "67417edd62c15e0bd0e5b9ac"
+ *     responses:
+ *       200:
+ *         description: Report status updated successfully
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: Report not found
+ */
+
+// Report routes
+router.post('/:productId/report', ProductController.reportProduct);
+router.get('/:productId/reports', ProductController.getProductReports);
+router.patch('/reports/:reportId/status', ProductController.updateReportStatus);
+
 module.exports = router;

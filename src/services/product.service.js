@@ -4,6 +4,7 @@ const cloudinary = require('cloudinary').v2;
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 const RecentSearch = require('../models/recentSearch.model');
+const Report = require('../models/report.model');
 
 class ProductService {
     static async createProduct(userId, productData, images) {
@@ -526,6 +527,87 @@ class ProductService {
             return formattedProducts;
         } catch (error) {
             logger.error('Error in getPopularProducts:', error);
+            throw error;
+        }
+    }
+
+    static async reportProduct(reportData) {
+        try {
+            logger.info('Reporting product:', reportData);
+
+            // Check if product exists
+            const product = await Product.findById(reportData.productId);
+            if (!product) {
+                throw new Error('Product not found');
+            }
+
+            // Check if user has already reported this product
+            const existingReport = await Report.findOne({
+                userId: reportData.userId,
+                productId: reportData.productId
+            });
+
+            if (existingReport) {
+                throw new Error('You have already reported this product');
+            }
+
+            // Create report
+            const report = await Report.create({
+                productId: reportData.productId,
+                userId: reportData.userId,
+                reason: reportData.reason,
+                description: reportData.description
+            });
+
+            logger.info('Product reported successfully');
+            return report;
+        } catch (error) {
+            logger.error('Error in reportProduct:', error);
+            throw error;
+        }
+    }
+
+    static async getProductReports(productId) {
+        try {
+            const reports = await Report.find({ productId })
+                .sort({ createdAt: -1 })
+                .lean();
+
+            return reports;
+        } catch (error) {
+            logger.error('Error in getProductReports:', error);
+            throw error;
+        }
+    }
+
+    static async updateReportStatus(reportId, updateData) {
+        try {
+            logger.info('Updating report status:', { reportId, updateData });
+
+            // Validate status
+            const validStatuses = ['pending', 'reviewed', 'resolved'];
+            if (!validStatuses.includes(updateData.status)) {
+                throw new Error('Invalid status provided');
+            }
+
+            const report = await Report.findById(reportId);
+
+            if (!report) {
+                throw new Error('Report not found');
+            }
+
+            // Update report
+            report.status = updateData.status;
+            report.adminComment = updateData.adminComment;
+            report.reviewedBy = updateData.adminId;
+            report.reviewedAt = new Date();
+
+            await report.save();
+
+            logger.info(`Report ${reportId} status updated to ${updateData.status}`);
+            return report;
+        } catch (error) {
+            logger.error('Error in updateReportStatus:', error);
             throw error;
         }
     }

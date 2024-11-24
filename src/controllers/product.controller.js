@@ -440,6 +440,151 @@ class ProductController {
             });
         }
     }
+
+    static async reportProduct(req, res) {
+        try {
+            const { productId } = req.params;
+            const { userId, reason, description } = req.body;
+
+            // Validate input
+            if (!userId || !reason || !description) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: 'User ID, reason and description are required'
+                });
+            }
+
+            // Validate reason
+            const validReasons = ['inappropriate', 'spam', 'fake', 'offensive', 'other'];
+            if (!validReasons.includes(reason)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: 'Invalid reason provided'
+                });
+            }
+
+            const report = await ProductService.reportProduct({
+                productId,
+                userId,
+                reason,
+                description
+            });
+
+            return res.status(201).json({
+                success: true,
+                data: report,
+                message: 'Product reported successfully'
+            });
+        } catch (error) {
+            logger.error('Error reporting product:', error);
+
+            if (error.message === 'Product not found') {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Not Found',
+                    message: error.message
+                });
+            }
+
+            if (error.message === 'You have already reported this product') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: error.message
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                error: 'Server Error',
+                message: 'Error reporting product'
+            });
+        }
+    }
+
+    static async getProductReports(req, res) {
+        try {
+            const { productId } = req.params;
+            const reports = await ProductService.getProductReports(productId);
+
+            return res.status(200).json({
+                success: true,
+                data: reports,
+                message: 'Product reports retrieved successfully'
+            });
+        } catch (error) {
+            logger.error('Error getting product reports:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Server Error',
+                message: 'Error retrieving product reports'
+            });
+        }
+    }
+
+    static async updateReportStatus(req, res) {
+        try {
+            const { reportId } = req.params;
+            const { status, adminComment, adminId } = req.body;
+
+            // Validate input
+            if (!status || !adminId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: 'Status and admin ID are required'
+                });
+            }
+
+            // Validate status
+            const validStatuses = ['pending', 'reviewed', 'resolved'];
+            if (!validStatuses.includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: 'Invalid status provided'
+                });
+            }
+
+            const updatedReport = await ProductService.updateReportStatus(reportId, {
+                status,
+                adminComment,
+                adminId
+            });
+
+            return res.status(200).json({
+                success: true,
+                data: updatedReport,
+                message: 'Report status updated successfully'
+            });
+        } catch (error) {
+            logger.error('Error updating report status:', error);
+
+            if (error.message === 'Report not found') {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Not Found',
+                    message: error.message
+                });
+            }
+
+            if (error.message === 'Invalid status provided') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation Error',
+                    message: error.message
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                error: 'Server Error',
+                message: 'Error updating report status'
+            });
+        }
+    }
 }
 
 module.exports = ProductController;
