@@ -8,7 +8,8 @@ const reportSchema = new mongoose.Schema({
         index: true
     },
     userId: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
         index: true
     },
@@ -19,29 +20,26 @@ const reportSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: true,
-        trim: true
+        required: true
     },
     status: {
         type: String,
         enum: ['pending', 'reviewed', 'resolved'],
         default: 'pending'
     },
-    adminComment: {
-        type: String,
-        trim: true
-    },
+    adminComment: String,
     reviewedBy: {
-        type: String  // Admin ID who reviewed the report
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     },
-    reviewedAt: {
-        type: Date
-    }
+    reviewedAt: Date
 }, {
     timestamps: true
 });
 
-// Compound index to prevent multiple reports from same user for same product
+// Compound indexes for better query performance
+reportSchema.index({ productId: 1, createdAt: -1 });
 reportSchema.index({ userId: 1, productId: 1 }, { unique: true });
 
-module.exports = mongoose.model('Report', reportSchema);
+const Report = mongoose.model('Report', reportSchema);
+module.exports = Report;

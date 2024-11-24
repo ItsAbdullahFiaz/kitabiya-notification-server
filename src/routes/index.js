@@ -2,6 +2,9 @@ const express = require('express');
 const productRoutes = require('./product.routes');
 const notificationRoutes = require('./notification.routes');
 const userRoutes = require('./user.routes');
+const authRoutes = require('./auth.routes');
+const authMiddleware = require('../middleware/auth.middleware');
+const adminAuthMiddleware = require('../middleware/adminAuth.middleware');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -9,7 +12,7 @@ const router = express.Router();
 // Log all API requests
 router.use(logger.httpRequest);
 
-// Health check route
+// Public routes
 router.get('/health', (req, res) => {
     res.status(200).json({
         status: 'ok',
@@ -19,12 +22,17 @@ router.get('/health', (req, res) => {
     });
 });
 
-// Mount routes
-router.use('/v1/products', productRoutes);
-router.use('/v1/notifications', notificationRoutes);
-router.use('/v1/users', userRoutes);
+// Authentication routes (public)
+router.use('/v1/auth', authRoutes);
 
-// 404 handler for undefined routes
+// Protected routes - require authentication
+router.use('/v1/products', authMiddleware, productRoutes);
+router.use('/v1/users', authMiddleware, userRoutes);
+
+// Protected routes - require admin authentication
+router.use('/v1/notifications', authMiddleware, adminAuthMiddleware, notificationRoutes);
+
+// 404 handler
 router.use('*', (req, res) => {
     res.status(404).json({
         error: 'Not Found',

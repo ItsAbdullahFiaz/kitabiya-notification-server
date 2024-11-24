@@ -1,17 +1,12 @@
 const validateProduct = (req, res, next) => {
     try {
         const requiredFields = [
-            'userId',
             'title',
             'price',
-            'categoryId',
-            'categorySubId',
             'condition',
             'type',
             'language',
             'description',
-            'locationLatitude',
-            'locationLongitude',
             'locationAddress'
         ];
 

@@ -7,10 +7,10 @@ const RecentSearch = require('../models/recentSearch.model');
 const Report = require('../models/report.model');
 
 class ProductService {
-    static async createProduct(userId, productData, images) {
+    static async createProduct(firebaseUid, productData, images) {
         try {
-            // Check if user exists
-            const user = await User.findById(userId);
+            // Find user by firebaseUid instead of _id
+            const user = await User.findOne({ firebaseUid });
             if (!user) {
                 throw new Error('User not found');
             }
@@ -25,19 +25,15 @@ class ProductService {
             const uploadedImages = await Promise.all(uploadPromises);
             const imageUrls = uploadedImages.map(result => result.secure_url);
 
-            // Create product with flat structure
+            // Create product using user's MongoDB _id
             const product = await Product.create({
-                userId,
+                userId: user._id,  // Use MongoDB _id instead of firebaseUid
                 title: productData.title,
                 price: productData.price,
-                categoryId: productData.categoryId,
-                categorySubId: productData.categorySubId,
                 condition: productData.condition,
                 type: productData.type,
                 language: productData.language,
                 description: productData.description,
-                locationLatitude: productData.locationLatitude,
-                locationLongitude: productData.locationLongitude,
                 locationAddress: productData.locationAddress,
                 images: imageUrls
             });
@@ -117,10 +113,37 @@ class ProductService {
         }
     }
 
-    static async getUserProducts(userId) {
-        return await Product.find({ userId })
-            .sort({ createdAt: -1 })
-            .lean();
+    static async getUserProducts(firebaseUid) {
+        try {
+            // First find the user by firebaseUid
+            const user = await User.findOne({ firebaseUid });
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Then find products using user's MongoDB _id
+            const products = await Product.find({ userId: user._id })
+                .sort({ createdAt: -1 })
+                .populate({
+                    path: 'userId',
+                    select: 'name email'
+                })
+                .lean();
+
+            // Format the response
+            return products.map(product => ({
+                ...product,
+                user: {
+                    id: product.userId._id,
+                    name: product.userId.name,
+                    email: product.userId.email
+                },
+                userId: undefined
+            }));
+        } catch (error) {
+            logger.error('Error in getUserProducts:', error);
+            throw error;
+        }
     }
 
     static async getProductById(productId) {

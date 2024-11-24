@@ -3,11 +3,14 @@ const UserService = require('../services/user.service');
 const logger = require('../utils/logger');
 const { productSchema } = require('../validations/product.schema');
 const mongoose = require('mongoose');
+const Product = require('../models/product.model');
+const RecentSearch = require('../models/recentSearch.model');
+const User = require('../models/user.model');
+const Report = require('../models/report.model');
 
 class ProductController {
     static async createProduct(req, res, next) {
         try {
-            // Check if files were uploaded
             if (!req.files || req.files.length === 0) {
                 return res.status(400).json({
                     error: 'Validation Error',
@@ -16,7 +19,7 @@ class ProductController {
             }
 
             const productData = {
-                userId: req.body.userId,
+                userId: req.user.uid,
                 title: req.body.title,
                 price: Number(req.body.price),
                 categoryId: req.body.categoryId,
@@ -31,7 +34,7 @@ class ProductController {
             };
 
             const result = await ProductService.createProduct(
-                productData.userId,
+                req.user.uid,
                 productData,
                 req.files
             );
@@ -48,13 +51,12 @@ class ProductController {
 
     static async getUserProducts(req, res, next) {
         try {
-            const { userId } = req.params;
-            if (!userId) {
-                return res.status(400).json({ error: 'userId is required' });
-            }
-
-            const products = await ProductService.getUserProducts(userId);
-            res.status(200).json(products);
+            const products = await ProductService.getUserProducts(req.user.uid);
+            res.status(200).json({
+                success: true,
+                data: products,
+                message: 'User products retrieved successfully'
+            });
         } catch (error) {
             next(error);
         }
@@ -76,13 +78,7 @@ class ProductController {
     static async deleteProduct(req, res, next) {
         try {
             const { productId } = req.params;
-            const { userId } = req.query;
-
-            if (!userId) {
-                return res.status(400).json({ error: 'userId is required' });
-            }
-
-            const product = await ProductService.deleteProduct(productId, userId);
+            const product = await ProductService.deleteProduct(productId, req.user.uid);
             if (!product) {
                 return res.status(404).json({ error: 'Product not found' });
             }
@@ -94,34 +90,39 @@ class ProductController {
 
     static async getAllProducts(req, res, next) {
         try {
-            const page = Math.max(1, parseInt(req.query.page) || 1);
-            const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
-            const sort = req.query.sort || '-createdAt';
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const sortBy = req.query.sortBy || 'createdAt';
+            const sortOrder = req.query.sortOrder || 'desc';
 
-            const result = await ProductService.getAllProducts({
-                page,
-                limit,
-                sort
-            });
+            const skip = (page - 1) * limit;
+            const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+            const [products, total] = await Promise.all([
+                Product.find()
+                    .sort(sortOptions)
+                    .skip(skip)
+                    .limit(limit)
+                    .populate('userId', 'name email')
+                    .lean(),
+                Product.countDocuments()
+            ]);
 
             res.status(200).json({
                 success: true,
                 message: 'Products retrieved successfully',
-                data: result.products,
-                pagination: {
-                    total: result.total,
-                    page: result.page,
-                    pages: result.pages,
-                    limit
+                data: {
+                    products,
+                    pagination: {
+                        current: page,
+                        limit,
+                        total,
+                        pages: Math.ceil(total / limit)
+                    }
                 }
             });
         } catch (error) {
-            logger.error('Error in getAllProducts:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Internal Server Error',
-                message: 'Error retrieving products'
-            });
+            next(error);
         }
     }
 
@@ -326,48 +327,40 @@ class ProductController {
         }
     }
 
-    static async getRecentSearches(req, res) {
+    static async getRecentSearches(req, res, next) {
         try {
-            const { userId } = req.query;
+            const userId = req.mongoUser._id;
+            const limit = parseInt(req.query.limit) || 10;
 
-            if (!userId) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Validation Error',
-                    message: 'User ID is required'
-                });
-            }
+            const recentSearches = await RecentSearch.find({ userId })
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .populate('productId', 'title images price condition type')
+                .lean();
 
-            const recentSearches = await ProductService.getRecentSearches(userId);
-
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
-                data: recentSearches,
-                message: 'Recent searches retrieved successfully'
+                message: 'Recent searches retrieved successfully',
+                data: recentSearches
             });
         } catch (error) {
-            logger.error('Error getting recent searches:', error);
-            return res.status(500).json({
-                success: false,
-                error: 'Server Error',
-                message: error.message || 'Error retrieving recent searches'
-            });
+            next(error);
         }
     }
 
     static async addToRecentSearches(req, res) {
         try {
-            const { userId, productId } = req.body;
+            const { productId } = req.body;
 
-            if (!userId || !productId) {
+            if (!productId) {
                 return res.status(400).json({
                     success: false,
                     error: 'Validation Error',
-                    message: 'User ID and Product ID are required'
+                    message: 'Product ID is required'
                 });
             }
 
-            await ProductService.addToRecentSearches(userId, productId);
+            await ProductService.addToRecentSearches(req.user.uid, productId);
             return res.status(200).json({
                 success: true,
                 message: 'Added to recent searches'
@@ -384,18 +377,9 @@ class ProductController {
 
     static async clearRecentSearches(req, res) {
         try {
-            const { userId } = req.query;
-            logger.info('Attempting to clear recent searches for user:', userId);
+            logger.info('Attempting to clear recent searches for user:', req.user.uid);
 
-            if (!userId) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Validation Error',
-                    message: 'User ID is required'
-                });
-            }
-
-            const result = await ProductService.clearRecentSearches(userId);
+            const result = await ProductService.clearRecentSearches(req.user.uid);
 
             return res.status(200).json({
                 success: true,
@@ -419,39 +403,32 @@ class ProductController {
         }
     }
 
-    static async getPopularProducts(req, res) {
+    static async getPopularProducts(req, res, next) {
         try {
-            logger.info('Getting popular products');
-            const limit = parseInt(req.query.limit) || 10;
-
+            const limit = req.query.limit ? parseInt(req.query.limit) : 10;
             const products = await ProductService.getPopularProducts(limit);
 
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
                 data: products,
                 message: 'Popular products retrieved successfully'
             });
         } catch (error) {
-            logger.error('Error getting popular products:', error);
-            return res.status(500).json({
-                success: false,
-                error: 'Server Error',
-                message: 'Error retrieving popular products'
-            });
+            next(error);
         }
     }
 
-    static async reportProduct(req, res) {
+    static async reportProduct(req, res, next) {
         try {
             const { productId } = req.params;
-            const { userId, reason, description } = req.body;
+            const userId = req.mongoUser._id;
+            const { reason, description } = req.body;
 
-            // Validate input
-            if (!userId || !reason || !description) {
+            // Validate required fields
+            if (!reason || !description) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Validation Error',
-                    message: 'User ID, reason and description are required'
+                    message: 'Reason and description are required'
                 });
             }
 
@@ -460,81 +437,135 @@ class ProductController {
             if (!validReasons.includes(reason)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Validation Error',
-                    message: 'Invalid reason provided'
+                    message: 'Invalid reason. Must be one of: ' + validReasons.join(', ')
                 });
             }
 
-            const report = await ProductService.reportProduct({
+            // Validate product ID
+            if (!mongoose.Types.ObjectId.isValid(productId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid product ID format'
+                });
+            }
+
+            // Check if product exists
+            const product = await Product.findById(productId);
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Product not found'
+                });
+            }
+
+            // Check if user is reporting their own product
+            if (product.userId.toString() === userId.toString()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'You cannot report your own product'
+                });
+            }
+
+            // Check if user has already reported this product
+            const existingReport = await Report.findOne({ userId, productId });
+            if (existingReport) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'You have already reported this product'
+                });
+            }
+
+            // Create new report
+            const report = await Report.create({
                 productId,
                 userId,
                 reason,
-                description
+                description,
+                status: 'pending'
             });
 
-            return res.status(201).json({
+            res.status(201).json({
                 success: true,
-                data: report,
-                message: 'Product reported successfully'
+                message: 'Product reported successfully',
+                data: report
             });
         } catch (error) {
-            logger.error('Error reporting product:', error);
-
-            if (error.message === 'Product not found') {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Not Found',
-                    message: error.message
-                });
-            }
-
-            if (error.message === 'You have already reported this product') {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Validation Error',
-                    message: error.message
-                });
-            }
-
-            return res.status(500).json({
-                success: false,
-                error: 'Server Error',
-                message: 'Error reporting product'
-            });
+            console.error('Report product error:', error);
+            next(error);
         }
     }
 
-    static async getProductReports(req, res) {
+    static async getProductReports(req, res, next) {
         try {
             const { productId } = req.params;
-            const reports = await ProductService.getProductReports(productId);
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
 
-            return res.status(200).json({
+            // Validate product ID
+            if (!mongoose.Types.ObjectId.isValid(productId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid product ID format'
+                });
+            }
+
+            // Check if product exists
+            const product = await Product.findById(productId);
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Product not found'
+                });
+            }
+
+            // Calculate skip for pagination
+            const skip = (page - 1) * limit;
+
+            // Get reports with pagination
+            const [reports, total] = await Promise.all([
+                Report.find({ productId })
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .populate('userId', 'name email')
+                    .lean(),
+                Report.countDocuments({ productId })
+            ]);
+
+            res.status(200).json({
                 success: true,
-                data: reports,
-                message: 'Product reports retrieved successfully'
+                message: 'Reports retrieved successfully',
+                data: {
+                    reports,
+                    pagination: {
+                        current: page,
+                        limit,
+                        total,
+                        pages: Math.ceil(total / limit)
+                    }
+                }
             });
         } catch (error) {
-            logger.error('Error getting product reports:', error);
-            return res.status(500).json({
+            console.error('Get product reports error:', error);
+            res.status(500).json({
                 success: false,
-                error: 'Server Error',
-                message: 'Error retrieving product reports'
+                message: 'Error retrieving product reports',
+                error: error.message
             });
         }
     }
 
-    static async updateReportStatus(req, res) {
+    static async updateReportStatus(req, res, next) {
         try {
             const { reportId } = req.params;
-            const { status, adminComment, adminId } = req.body;
+            const { status, adminComment } = req.body;
+            const adminId = req.mongoUser._id;
 
-            // Validate input
-            if (!status || !adminId) {
+            // Validate report ID
+            if (!mongoose.Types.ObjectId.isValid(reportId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Validation Error',
-                    message: 'Status and admin ID are required'
+                    message: 'Invalid report ID format'
                 });
             }
 
@@ -543,48 +574,89 @@ class ProductController {
             if (!validStatuses.includes(status)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Validation Error',
-                    message: 'Invalid status provided'
+                    message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
                 });
             }
 
-            const updatedReport = await ProductService.updateReportStatus(reportId, {
-                status,
-                adminComment,
-                adminId
-            });
+            // Find and update the report
+            const report = await Report.findById(reportId);
 
-            return res.status(200).json({
-                success: true,
-                data: updatedReport,
-                message: 'Report status updated successfully'
-            });
-        } catch (error) {
-            logger.error('Error updating report status:', error);
-
-            if (error.message === 'Report not found') {
+            if (!report) {
                 return res.status(404).json({
                     success: false,
-                    error: 'Not Found',
-                    message: error.message
+                    message: 'Report not found'
                 });
             }
 
-            if (error.message === 'Invalid status provided') {
+            // Update report
+            report.status = status;
+            report.adminComment = adminComment;
+            report.reviewedBy = adminId;
+            report.reviewedAt = new Date();
+
+            await report.save();
+
+            // Populate user details
+            await report.populate('userId', 'name email');
+
+            res.status(200).json({
+                success: true,
+                message: 'Report status updated successfully',
+                data: report
+            });
+        } catch (error) {
+            console.error('Update report status error:', error);
+            next(error);
+        }
+    }
+
+    static async deleteRecentSearches(req, res, next) {
+        try {
+            const userId = req.mongoUser._id;
+
+            await RecentSearch.deleteMany({ userId });
+
+            res.status(200).json({
+                success: true,
+                message: 'Recent searches cleared successfully'
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async deleteRecentSearch(req, res, next) {
+        try {
+            const userId = req.mongoUser._id;
+            const searchId = req.params.searchId;
+
+            if (!mongoose.Types.ObjectId.isValid(searchId)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Validation Error',
-                    message: error.message
+                    message: 'Invalid search ID format'
                 });
             }
 
-            return res.status(500).json({
-                success: false,
-                error: 'Server Error',
-                message: 'Error updating report status'
+            const result = await RecentSearch.findOneAndDelete({
+                _id: searchId,
+                userId
             });
+
+            if (!result) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Recent search not found or already deleted'
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'Recent search deleted successfully'
+            });
+        } catch (error) {
+            next(error);
         }
     }
 }
 
-module.exports = ProductController;
+module.exports = { ProductController };
