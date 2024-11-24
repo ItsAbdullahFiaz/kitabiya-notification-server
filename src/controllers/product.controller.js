@@ -330,18 +330,12 @@ class ProductController {
     static async getRecentSearches(req, res, next) {
         try {
             const userId = req.mongoUser._id;
-            const limit = parseInt(req.query.limit) || 10;
-
-            const recentSearches = await RecentSearch.find({ userId })
-                .sort({ createdAt: -1 })
-                .limit(limit)
-                .populate('productId', 'title images price condition type')
-                .lean();
+            const formattedSearches = await ProductService.getRecentSearches(userId);
 
             res.status(200).json({
                 success: true,
                 message: 'Recent searches retrieved successfully',
-                data: recentSearches
+                data: formattedSearches
             });
         } catch (error) {
             next(error);

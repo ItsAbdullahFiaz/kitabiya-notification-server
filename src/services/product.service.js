@@ -385,12 +385,15 @@ class ProductService {
         try {
             logger.info('Getting recent searches for user:', userId);
 
+            // Clean up any invalid entries first
+            await this.cleanupRecentSearches(userId);
+
             const searches = await RecentSearch.find({ userId })
                 .sort({ createdAt: -1 })
                 .limit(10)
                 .populate({
                     path: 'productId',
-                    select: 'title images price',
+                    select: 'title images price condition type',
                     model: 'Product'
                 })
                 .lean();
@@ -408,7 +411,9 @@ class ProductService {
                     _id: search.productId._id,
                     title: search.productId.title,
                     images: search.productId.images,
-                    price: search.productId.price
+                    price: search.productId.price,
+                    condition: search.productId.condition,
+                    type: search.productId.type
                 },
                 createdAt: search.createdAt
             }));
@@ -613,6 +618,20 @@ class ProductService {
             return report;
         } catch (error) {
             logger.error('Error in updateReportStatus:', error);
+            throw error;
+        }
+    }
+
+    static async cleanupRecentSearches(userId) {
+        try {
+            const result = await RecentSearch.deleteMany({
+                userId,
+                productId: null
+            });
+            logger.info(`Cleaned up ${result.deletedCount} invalid recent searches`);
+            return result;
+        } catch (error) {
+            logger.error('Error cleaning up recent searches:', error);
             throw error;
         }
     }
