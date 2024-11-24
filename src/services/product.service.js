@@ -122,36 +122,47 @@ class ProductService {
             .lean();
     }
 
-    static async getProductById(id) {
+    static async getProductById(productId) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(id)) {
-                throw new Error('Invalid product ID');
-            }
+            logger.info('Getting product by ID:', productId);
 
-            const product = await Product.findById(id).lean();
+            // This single operation does two things:
+            // 1. Finds the product
+            // 2. Increments the views counter
+            const product = await Product.findOneAndUpdate(
+                { _id: productId },        // Find product by ID
+                { $inc: { views: 1 } },    // Increment views by 1
+                {
+                    new: true,             // Return updated document
+                    populate: {            // Include user details
+                        path: 'userId',
+                        select: 'name email'
+                    }
+                }
+            );
+
             if (!product) {
-                return null;
+                throw new Error('Product not found');
             }
 
-            let user = null;
-            if (product.userId && mongoose.Types.ObjectId.isValid(product.userId)) {
-                user = await User.findById(product.userId).lean();
-            }
-
-            return {
-                ...product,
-                user: user ? {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email
-                } : null,
-                userId: undefined
+            // Format response
+            const formattedProduct = {
+                _id: product._id,
+                title: product.title,
+                price: product.price,
+                views: product.views,      // Include view count in response
+                user: {
+                    id: product.userId._id,
+                    name: product.userId.name,
+                    email: product.userId.email
+                },
+                // ... other fields ...
             };
+
+            logger.info(`Product ${productId} viewed. Total views: ${product.views}`);
+            return formattedProduct;
         } catch (error) {
-            logger.error('Error in ProductService.getProductById:', {
-                error: error.message,
-                stack: error.stack
-            });
+            logger.error('Error in getProductById:', error);
             throw error;
         }
     }

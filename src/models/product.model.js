@@ -53,7 +53,12 @@ const productSchema = new mongoose.Schema({
     images: [{
         type: String,
         required: true
-    }]
+    }],
+    views: {
+        type: Number,
+        default: 0,
+        index: true
+    }
 }, {
     timestamps: true
 });
