@@ -5,6 +5,27 @@ const upload = require('../middleware/upload');
 
 /**
  * @swagger
+ * /api/v1/products/popular:
+ *   get:
+ *     summary: Get popular products
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: Popular products retrieved successfully
+ *       500:
+ *         description: Server error
+ */
+router.get('/popular', ProductController.getPopularProducts);
+
+/**
+ * @swagger
  * /api/v1/products/recent-searches:
  *   get:
  *     summary: Get user's recent product searches

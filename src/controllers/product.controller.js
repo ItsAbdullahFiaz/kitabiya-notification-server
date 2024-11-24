@@ -418,6 +418,28 @@ class ProductController {
             });
         }
     }
+
+    static async getPopularProducts(req, res) {
+        try {
+            logger.info('Getting popular products');
+            const limit = parseInt(req.query.limit) || 10;
+
+            const products = await ProductService.getPopularProducts(limit);
+
+            return res.status(200).json({
+                success: true,
+                data: products,
+                message: 'Popular products retrieved successfully'
+            });
+        } catch (error) {
+            logger.error('Error getting popular products:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Server Error',
+                message: 'Error retrieving popular products'
+            });
+        }
+    }
 }
 
 module.exports = ProductController;

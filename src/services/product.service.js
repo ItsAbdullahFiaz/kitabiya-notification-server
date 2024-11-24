@@ -470,6 +470,65 @@ class ProductService {
             throw error;
         }
     }
+
+    static async getPopularProducts(limit = 10) {
+        try {
+            logger.info(`Getting top ${limit} popular products`);
+
+            // First get products without population
+            const products = await Product.find()
+                .sort({ views: -1 })
+                .limit(limit)
+                .lean();
+
+            logger.info(`Found ${products.length} popular products`);
+
+            // Format products without user data first
+            const formattedProducts = products.map(product => ({
+                _id: product._id,
+                title: product.title,
+                price: product.price,
+                views: product.views || 0,
+                images: product.images || [],
+                description: product.description,
+                condition: product.condition,
+                type: product.type,
+                language: product.language,
+                locationAddress: product.locationAddress,
+                userId: product.userId // Keep the original userId
+            }));
+
+            // Now try to populate user data separately
+            for (let product of formattedProducts) {
+                try {
+                    if (product.userId) {
+                        const user = await User.findById(product.userId)
+                            .select('name email')
+                            .lean();
+
+                        if (user) {
+                            product.user = {
+                                id: user._id,
+                                name: user.name,
+                                email: user.email
+                            };
+                        }
+                    }
+                    // Remove the userId from the final response
+                    delete product.userId;
+                } catch (error) {
+                    logger.warn(`Could not populate user for product ${product._id}:`, error);
+                    // Continue with next product if one fails
+                    continue;
+                }
+            }
+
+            return formattedProducts;
+        } catch (error) {
+            logger.error('Error in getPopularProducts:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = ProductService;
