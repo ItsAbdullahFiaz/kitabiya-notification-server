@@ -24,6 +24,7 @@ router.get('/health', (req, res) => {
 
 // Authentication routes (public)
 router.use('/v1/auth', authRoutes);
+router.use('/v1/users/register', userRoutes);
 
 // Protected routes - require authentication
 router.use('/v1/products', authMiddleware, productRoutes);

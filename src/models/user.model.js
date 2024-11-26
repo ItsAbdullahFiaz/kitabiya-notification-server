@@ -6,6 +6,11 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    firebaseUid: {
+        type: String,
+        required: true,
+        unique: true
+    },
     email: {
         type: String,
         required: true,
@@ -14,6 +19,11 @@ const userSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true
+    },
+    provider: {
+        type: String,
+        required: true,
+        default: 'password'
     },
     isAdmin: {
         type: Boolean,

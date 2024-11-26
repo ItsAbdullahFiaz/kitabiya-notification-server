@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
 const User = require('../models/user.model');
+const logger = require('../utils/logger');
 
 const auth = async (req, res, next) => {
     try {
@@ -14,27 +15,35 @@ const auth = async (req, res, next) => {
 
         // Verify token
         const decodedToken = await admin.auth().verifyIdToken(token);
+        
+        // Get Firebase user details
+        const firebaseUser = await admin.auth().getUser(decodedToken.uid);
 
-        // Find user by either firebaseId or email
+        // Find or create user in MongoDB
         let mongoUser = await User.findOne({
             $or: [
-                { firebaseId: decodedToken.user_id },
+                { firebaseId: decodedToken.uid },
                 { email: decodedToken.email }
             ]
         });
 
         if (!mongoUser) {
-            // Only create if user doesn't exist
+            // Create new user
             mongoUser = await User.create({
-                firebaseId: decodedToken.user_id,
+                firebaseId: decodedToken.uid,
+                firebaseUid: decodedToken.uid, // Add this field for consistency
                 email: decodedToken.email,
-                name: decodedToken.email.split('@')[0],
+                name: firebaseUser.displayName || decodedToken.email.split('@')[0],
+                provider: firebaseUser.providerData[0]?.providerId || 'unknown',
                 isAdmin: false
             });
+            logger.info('New user created:', { userId: mongoUser._id });
         } else if (!mongoUser.firebaseId) {
-            // Update firebaseId if it's missing (for existing email users)
-            mongoUser.firebaseId = decodedToken.user_id;
+            // Update existing user with firebaseId if missing
+            mongoUser.firebaseId = decodedToken.uid;
+            mongoUser.firebaseUid = decodedToken.uid;
             await mongoUser.save();
+            logger.info('Updated user with firebaseId:', { userId: mongoUser._id });
         }
 
         // Set both Firebase and MongoDB user in request
@@ -42,13 +51,13 @@ const auth = async (req, res, next) => {
         req.mongoUser = mongoUser;
         next();
     } catch (error) {
-        console.error('Auth middleware error:', error);
+        logger.error('Auth middleware error:', error);
 
-        // Handle specific errors
-        if (error.code === 11000) {
-            return res.status(400).json({
+        if (error.code === 'auth/id-token-expired') {
+            return res.status(401).json({
                 success: false,
-                message: 'User already exists with this email'
+                message: 'Token expired',
+                error: error.code
             });
         }
 
