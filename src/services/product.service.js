@@ -494,7 +494,25 @@ class ProductService {
 
             logger.info(`Found ${products.length} popular products`);
 
-            // Format products without user data first
+            // Get all unique user IDs
+            const userIds = [...new Set(products.map(product => product.userId))];
+
+            // Fetch all users in one query
+            const users = await User.find({ _id: { $in: userIds } })
+                .select('name email')
+                .lean();
+
+            // Create a map of users for quick lookup
+            const userMap = users.reduce((acc, user) => {
+                acc[user._id.toString()] = {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                };
+                return acc;
+            }, {});
+
+            // Format products with user data
             const formattedProducts = products.map(product => ({
                 _id: product._id,
                 title: product.title,
@@ -506,33 +524,8 @@ class ProductService {
                 type: product.type,
                 language: product.language,
                 locationAddress: product.locationAddress,
-                userId: product.userId // Keep the original userId
+                user: userMap[product.userId.toString()] || null
             }));
-
-            // Now try to populate user data separately
-            for (let product of formattedProducts) {
-                try {
-                    if (product.userId) {
-                        const user = await User.findById(product.userId)
-                            .select('name email')
-                            .lean();
-
-                        if (user) {
-                            product.user = {
-                                id: user._id,
-                                name: user.name,
-                                email: user.email
-                            };
-                        }
-                    }
-                    // Remove the userId from the final response
-                    delete product.userId;
-                } catch (error) {
-                    logger.warn(`Could not populate user for product ${product._id}:`, error);
-                    // Continue with next product if one fails
-                    continue;
-                }
-            }
 
             return formattedProducts;
         } catch (error) {
