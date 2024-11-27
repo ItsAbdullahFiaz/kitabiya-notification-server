@@ -19,6 +19,14 @@ const options = {
             }
         ],
         components: {
+            securitySchemes: {
+                BearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                    description: 'Enter your Firebase ID token'
+                }
+            },
             schemas: {
                 Product: {
                     type: 'object',
