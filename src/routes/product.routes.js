@@ -72,117 +72,11 @@ router.patch('/reports/:reportId/status',
     ProductController.updateReportStatus
 );
 
-/**
- * @swagger
- * /api/v1/products/{productId}:
- *   get:
- *     summary: Get a specific product by ID
- *     tags: [Products]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: productId
- *         required: true
- *         schema:
- *           type: string
- *         description: The ID of the product to retrieve
- *     responses:
- *       200:
- *         description: Product retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Product'
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       404:
- *         description: Product not found
- *       500:
- *         description: Server error
- */
 router.get('/:productId',
     auth,
     ProductController.getProduct
 );
 
-/**
- * @swagger
- * /api/v1/products/{productId}/report:
- *   post:
- *     summary: Report a product
- *     tags: [Products]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: productId
- *         required: true
- *         schema:
- *           type: string
- *         description: The ID of the product to report
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reason
- *               - description
- *             properties:
- *               reason:
- *                 type: string
- *                 enum: [inappropriate, spam, fake, offensive, other]
- *                 description: The reason for reporting
- *               description:
- *                 type: string
- *                 description: Detailed description of the report
- *     responses:
- *       201:
- *         description: Report submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Product reported successfully
- *                 data:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                     productId:
- *                       type: string
- *                     userId:
- *                       type: string
- *                     reason:
- *                       type: string
- *                     description:
- *                       type: string
- *                     status:
- *                       type: string
- *                       example: pending
- *       400:
- *         description: Invalid input or validation error
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       404:
- *         description: Product not found
- *       500:
- *         description: Server error
- */
 router.post('/:productId/report',
     auth,
     ProductController.reportProduct

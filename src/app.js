@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const swaggerUi = require('swagger-ui-express');
 require('dotenv').config();
 const multer = require('multer');
 const helmet = require('helmet');
@@ -9,7 +8,6 @@ const rateLimit = require('express-rate-limit');
 const { initializeFirebase } = require('./config/firebase.config');
 const connectDB = require('./config/db.config');
 const config = require('./config/app.config');
-const swaggerSpec = require('./docs/swagger');
 const routes = require('./routes');
 const errorHandler = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
@@ -27,9 +25,6 @@ initializeCloudinary();
 // Middleware
 app.use(cors(config.cors));
 app.use(express.json());
-
-// Add Swagger documentation route
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Add before routes
 app.use(helmet());
@@ -83,8 +78,7 @@ const startServer = async () => {
         app.listen(config.port, '0.0.0.0', () => {
             console.log(`
 🚀 Server running in ${config.nodeEnv} mode on port ${config.port}
-📚 API Documentation: http://localhost:${config.port}/api-docs
-            `);
+`);
             logger.info(`Server running on port ${config.port}`);
         });
 
