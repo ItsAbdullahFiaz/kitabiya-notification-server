@@ -30,8 +30,13 @@ router.use('/v1/users/register', userRoutes);
 router.use('/v1/products', authMiddleware, productRoutes);
 router.use('/v1/users', authMiddleware, userRoutes);
 
-// Protected routes - require admin authentication
-router.use('/v1/notifications', authMiddleware, adminAuthMiddleware, notificationRoutes);
+// Split notification routes
+// Public routes (require only auth)
+router.use('/v1/notifications/send', authMiddleware, notificationRoutes);
+router.use('/v1/notifications/broadcasts', authMiddleware, notificationRoutes);
+
+// Admin-only routes
+router.use('/v1/notifications/broadcast', authMiddleware, adminAuthMiddleware, notificationRoutes);
 
 // 404 handler
 router.use('*', (req, res) => {

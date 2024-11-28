@@ -3,10 +3,11 @@ const NotificationController = require('../controllers/notification.controller')
 const { validateNotification, validateBroadcast } = require('../middleware/validation.middleware');
 const router = express.Router();
 
-router.post('/send', validateNotification, NotificationController.sendNotification);
+// Public routes (require only auth)
+router.post('/', validateNotification, NotificationController.sendNotification);
+router.get('/', NotificationController.getBroadcastHistory);
 
-router.post('/broadcast', validateBroadcast, NotificationController.broadcastToAll);
-
-router.get('/broadcasts', NotificationController.getBroadcastHistory);
+// Admin-only route
+router.post('/', validateBroadcast, NotificationController.broadcastToAll);
 
 module.exports = router;
