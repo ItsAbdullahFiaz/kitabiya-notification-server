@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const UserService = require('../services/user.service');
+const User = require('../models/user.model');
 
 class AuthController {
     static async login(req, res, next) {
@@ -16,7 +17,7 @@ class AuthController {
 
             // Verify token
             const decodedToken = await admin.auth().verifyIdToken(token);
-            
+
             // Get Firebase user details
             const firebaseUser = await admin.auth().getUser(decodedToken.uid);
 
