@@ -66,6 +66,21 @@ router.post('/',
     ProductController.createProduct
 );
 
+// Update product
+router.put('/:id',
+    auth,
+    ownerAuth,
+    upload.array('images', 5),
+    ProductController.updateProduct
+);
+
+// Delete product
+router.delete('/:id',
+    auth,
+    ownerAuth,
+    ProductController.deleteProduct
+);
+
 // Update report status route (place this before parameterized routes)
 router.patch('/reports/:reportId/status',
     auth,
