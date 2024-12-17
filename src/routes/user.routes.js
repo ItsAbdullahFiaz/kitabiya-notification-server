@@ -1,8 +1,22 @@
 const express = require('express');
 const UserController = require('../controllers/user.controller');
+const auth = require('../middleware/auth.middleware');
+const upload = require('../middleware/upload');
 const router = express.Router();
 
-// The rest of the routing code stays exactly the same
+// Public routes
 router.post('/register', UserController.registerUser);
+
+// Protected routes
+router.put('/profile',
+    auth,
+    upload.single('photo'),
+    UserController.updateProfile
+);
+
+router.get('/profile',
+    auth,
+    UserController.getProfile
+);
 
 module.exports = router;

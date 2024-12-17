@@ -51,6 +51,9 @@ class AuthController {
                         firebaseId: mongoUser.firebaseId,
                         email: mongoUser.email,
                         name: mongoUser.name,
+                        photoUrl: mongoUser.photoUrl,
+                        location: mongoUser.location,
+                        dateOfBirth: mongoUser.dateOfBirth,
                         isAdmin: mongoUser.isAdmin,
                         createdAt: mongoUser.createdAt,
                         updatedAt: mongoUser.updatedAt
@@ -76,6 +79,9 @@ class AuthController {
                         firebaseId: user.firebaseId,
                         email: user.email,
                         name: user.name,
+                        photoUrl: user.photoUrl,
+                        location: user.location,
+                        dateOfBirth: user.dateOfBirth,
                         isAdmin: user.isAdmin,
                         createdAt: user.createdAt,
                         updatedAt: user.updatedAt
