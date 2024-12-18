@@ -31,25 +31,30 @@ class UserController {
 
     static async updateProfile(req, res, next) {
         try {
-            const updateData = {
-                name: req.body.name,
-                location: req.body.location,
-                dateOfBirth: req.body.dateOfBirth
-            };
+            // Only include fields that are provided
+            const updateData = {};
 
-            const photoFile = req.file;
-            const userId = req.mongoUser._id;
+            if (req.body.name) {
+                updateData.name = req.body.name;
+            }
 
-            // Validate date of birth if provided
-            if (updateData.dateOfBirth) {
-                const dob = new Date(updateData.dateOfBirth);
+            if (req.body.location) {
+                updateData.location = req.body.location;
+            }
+
+            if (req.body.dateOfBirth) {
+                const dob = new Date(req.body.dateOfBirth);
                 if (isNaN(dob.getTime())) {
                     return res.status(400).json({
                         success: false,
                         message: 'Invalid date format for date of birth'
                     });
                 }
+                updateData.dateOfBirth = dob;
             }
+
+            const photoFile = req.file;
+            const userId = req.mongoUser._id;
 
             const updatedUser = await UserService.updateUserProfile(userId, updateData, photoFile);
 
