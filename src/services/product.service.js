@@ -72,13 +72,13 @@ class ProductService {
                 .filter(id => mongoose.Types.ObjectId.isValid(id));
 
             // Fetch users only if we have valid IDs
-            let users = {};
+            let userMap = {};
             if (userIds.length > 0) {
-                const usersList = await User.find({
+                const users = await User.find({
                     _id: { $in: userIds }
                 }).lean();
 
-                users = usersList.reduce((acc, user) => {
+                userMap = users.reduce((acc, user) => {
                     acc[user._id.toString()] = {
                         id: user._id,
                         name: user.name,
@@ -89,11 +89,14 @@ class ProductService {
             }
 
             // Format products
-            const formattedProducts = products.map(product => ({
-                ...product,
-                user: users[product.userId.toString()] || null,
-                userId: undefined
-            }));
+            const formattedProducts = products.map(product => {
+                const userId = product.userId ? product.userId.toString() : null;
+                return {
+                    ...product,
+                    user: userId && userMap[userId] ? userMap[userId] : null,
+                    userId: undefined
+                };
+            });
 
             return {
                 products: formattedProducts,
