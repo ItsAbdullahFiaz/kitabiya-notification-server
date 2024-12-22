@@ -340,43 +340,44 @@ class ProductService {
                     .sort(sortObject)
                     .skip((pagination.page - 1) * pagination.limit)
                     .limit(pagination.limit)
+                    .populate('userId', 'name email')
                     .lean(),
                 Product.countDocuments(searchQuery)
             ]);
 
-            console.log('Found products:', products.length); // Debug log
-
-            // Get user data
-            const userIds = [...new Set(products.map(p => p.userId))];
-            const users = await User.find({
-                _id: { $in: userIds }
-            }).lean();
-
-            const userMap = users.reduce((acc, user) => {
-                acc[user._id.toString()] = {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email
-                };
-                return acc;
-            }, {});
-
-            // Format products
+            // Format products to match the exact structure
             const formattedProducts = products.map(product => ({
-                ...product,
-                user: userMap[product.userId.toString()] || null,
-                userId: undefined
+                _id: product._id,
+                userId: {
+                    _id: product.userId._id,
+                    email: product.userId.email,
+                    name: product.userId.name
+                },
+                title: product.title,
+                price: product.price,
+                images: product.images,
+                description: product.description,
+                condition: product.condition,
+                type: product.type,
+                language: product.language,
+                locationAddress: product.locationAddress,
+                views: product.views || 0,
+                createdAt: product.createdAt,
+                updatedAt: product.updatedAt,
+                __v: product.__v
             }));
 
             return {
                 products: formattedProducts,
-                total,
-                page: pagination.page,
-                pages: Math.ceil(total / pagination.limit),
-                limit: pagination.limit
+                pagination: {
+                    current: pagination.page,
+                    limit: pagination.limit,
+                    total,
+                    pages: Math.ceil(total / pagination.limit)
+                }
             };
         } catch (error) {
-            console.error('Search service error:', error); // Debug log
+            logger.error('Search service error:', error);
             throw error;
         }
     }
@@ -393,27 +394,38 @@ class ProductService {
                 .limit(10)
                 .populate({
                     path: 'productId',
-                    select: 'title images price condition type',
-                    model: 'Product'
+                    populate: {
+                        path: 'userId',
+                        select: 'name email'
+                    }
                 })
                 .lean();
 
             // Filter out any searches where product might have been deleted
             const validSearches = searches.filter(search => search.productId);
 
-            logger.info(`Found ${validSearches.length} valid searches`);
-
-            // Format the response
+            // Format the response to exactly match products API format
             const formattedSearches = validSearches.map(search => ({
                 _id: search._id,
-                userId: search.userId,
                 product: {
                     _id: search.productId._id,
+                    userId: {
+                        _id: search.productId.userId._id,
+                        email: search.productId.userId.email,
+                        name: search.productId.userId.name
+                    },
                     title: search.productId.title,
-                    images: search.productId.images,
                     price: search.productId.price,
+                    images: search.productId.images,
+                    description: search.productId.description,
                     condition: search.productId.condition,
-                    type: search.productId.type
+                    type: search.productId.type,
+                    language: search.productId.language,
+                    locationAddress: search.productId.locationAddress,
+                    views: search.productId.views || 0,
+                    createdAt: search.productId.createdAt,
+                    updatedAt: search.productId.updatedAt,
+                    __v: search.productId.__v
                 },
                 createdAt: search.createdAt
             }));
