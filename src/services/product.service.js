@@ -72,13 +72,13 @@ class ProductService {
                 .filter(id => mongoose.Types.ObjectId.isValid(id));
 
             // Fetch users only if we have valid IDs
-            let userMap = {};
+            let users = {};
             if (userIds.length > 0) {
-                const users = await User.find({
+                const usersList = await User.find({
                     _id: { $in: userIds }
                 }).lean();
 
-                userMap = users.reduce((acc, user) => {
+                users = usersList.reduce((acc, user) => {
                     acc[user._id.toString()] = {
                         id: user._id,
                         name: user.name,
@@ -89,14 +89,11 @@ class ProductService {
             }
 
             // Format products
-            const formattedProducts = products.map(product => {
-                const userId = product.userId ? product.userId.toString() : null;
-                return {
-                    ...product,
-                    user: userId && userMap[userId] ? userMap[userId] : null,
-                    userId: undefined
-                };
-            });
+            const formattedProducts = products.map(product => ({
+                ...product,
+                user: users[product.userId.toString()] || null,
+                userId: undefined
+            }));
 
             return {
                 products: formattedProducts,
@@ -121,7 +118,7 @@ class ProductService {
                 throw new Error('User not found');
             }
 
-            // Then find products using user's MongoDB _id and increment views
+            // Then find products using user's MongoDB _id
             const products = await Product.find({ userId: user._id })
                 .sort({ createdAt: -1 })
                 .populate({
@@ -129,17 +126,6 @@ class ProductService {
                     select: 'name email'
                 })
                 .lean();
-
-            // Update views for each product
-            const updatePromises = products.map(product =>
-                Product.findByIdAndUpdate(
-                    product._id,
-                    { $inc: { views: 1 } },
-                    { new: true }
-                )
-            );
-
-            await Promise.all(updatePromises);
 
             // Format the response
             return products.map(product => ({
@@ -420,14 +406,9 @@ class ProductService {
                 _id: search._id,
                 product: {
                     _id: search.productId._id,
-                    userId: {
-                        _id: search.productId.userId._id,
-                        email: search.productId.userId.email,
-                        name: search.productId.userId.name
-                    },
                     title: search.productId.title,
                     price: search.productId.price,
-                    images: search.productId.images,
+                    images: search.productId.images || [],
                     description: search.productId.description,
                     condition: search.productId.condition,
                     type: search.productId.type,
@@ -436,7 +417,11 @@ class ProductService {
                     views: search.productId.views || 0,
                     createdAt: search.productId.createdAt,
                     updatedAt: search.productId.updatedAt,
-                    __v: search.productId.__v
+                    user: {
+                        _id: search.productId.userId._id,
+                        email: search.productId.userId.email,
+                        name: search.productId.userId.name
+                    }
                 },
                 createdAt: search.createdAt
             }));
@@ -458,21 +443,13 @@ class ProductService {
                 throw new Error('Product not found');
             }
 
-            // Check if this combination already exists
-            const existingSearch = await RecentSearch.findOne({
+            // Delete any existing search for this product by this user
+            await RecentSearch.deleteOne({
                 userId,
                 productId: new mongoose.Types.ObjectId(productId)
             });
 
-            if (existingSearch) {
-                // Update timestamp of existing search
-                existingSearch.createdAt = new Date();
-                await existingSearch.save();
-                logger.info('Updated existing search timestamp');
-                return existingSearch;
-            }
-
-            // Create new entry if it doesn't exist
+            // Create new entry
             const recentSearch = await RecentSearch.create({
                 userId,
                 productId: new mongoose.Types.ObjectId(productId),
