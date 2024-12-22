@@ -345,7 +345,7 @@ class ProductService {
             // Format products to match the exact structure
             const formattedProducts = products.map(product => ({
                 _id: product._id,
-                userId: {
+                user: {
                     _id: product.userId._id,
                     email: product.userId.email,
                     name: product.userId.name
