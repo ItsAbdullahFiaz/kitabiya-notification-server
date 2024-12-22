@@ -121,7 +121,7 @@ class ProductService {
                 throw new Error('User not found');
             }
 
-            // Then find products using user's MongoDB _id
+            // Then find products using user's MongoDB _id and increment views
             const products = await Product.find({ userId: user._id })
                 .sort({ createdAt: -1 })
                 .populate({
@@ -129,6 +129,17 @@ class ProductService {
                     select: 'name email'
                 })
                 .lean();
+
+            // Update views for each product
+            const updatePromises = products.map(product =>
+                Product.findByIdAndUpdate(
+                    product._id,
+                    { $inc: { views: 1 } },
+                    { new: true }
+                )
+            );
+
+            await Promise.all(updatePromises);
 
             // Format the response
             return products.map(product => ({
