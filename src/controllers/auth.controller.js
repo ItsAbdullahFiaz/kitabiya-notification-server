@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const UserService = require('../services/user.service');
 const User = require('../models/user.model');
+const QuestionnaireService = require('../services/questionnaire.service');
 
 class AuthController {
     static async login(req, res, next) {
@@ -42,6 +43,9 @@ class AuthController {
                 logger.info('New user created:', { userId: mongoUser._id });
             }
 
+            // Check questionnaire status
+            const hasCompletedQuestionnaire = await QuestionnaireService.hasCompletedQuestionnaire(mongoUser._id);
+
             res.status(200).json({
                 success: true,
                 message: 'Login successful',
@@ -55,6 +59,7 @@ class AuthController {
                         location: mongoUser.location,
                         dateOfBirth: mongoUser.dateOfBirth,
                         isAdmin: mongoUser.isAdmin,
+                        hasCompletedQuestionnaire,
                         createdAt: mongoUser.createdAt,
                         updatedAt: mongoUser.updatedAt
                     }

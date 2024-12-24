@@ -6,6 +6,7 @@ const authRoutes = require('./auth.routes');
 const authMiddleware = require('../middleware/auth.middleware');
 const adminAuthMiddleware = require('../middleware/adminAuth.middleware');
 const logger = require('../utils/logger');
+const questionnaireRoutes = require('./questionnaire.routes');
 
 const router = express.Router();
 
@@ -37,6 +38,9 @@ router.use('/v1/notifications/broadcasts', authMiddleware, notificationRoutes);
 
 // Admin-only routes
 router.use('/v1/notifications/broadcast', authMiddleware, adminAuthMiddleware, notificationRoutes);
+
+// Add questionnaire routes
+router.use('/v1/questionnaire', authMiddleware, questionnaireRoutes);
 
 // 404 handler
 router.use('*', (req, res) => {
