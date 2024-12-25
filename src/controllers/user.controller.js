@@ -1,5 +1,6 @@
 const UserService = require('../services/user.service');
 const logger = require('../utils/logger');
+const QuestionnaireService = require('../services/questionnaire.service');
 
 class UserController {
     static async registerUser(req, res, next) {
@@ -84,6 +85,9 @@ class UserController {
         try {
             const user = req.mongoUser;
 
+            // Get questionnaire completion status
+            const hasCompletedQuestionnaire = await QuestionnaireService.hasCompletedQuestionnaire(user._id);
+
             res.status(200).json({
                 success: true,
                 message: 'Profile retrieved successfully',
@@ -96,7 +100,8 @@ class UserController {
                         location: user.location,
                         dateOfBirth: user.dateOfBirth,
                         createdAt: user.createdAt,
-                        updatedAt: user.updatedAt
+                        updatedAt: user.updatedAt,
+                        hasCompletedQuestionnaire
                     }
                 }
             });
